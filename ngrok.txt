@@ -1,0 +1,6 @@
+ngrok account banao 
+http ko token se register kro 
+http on kro side by side woth port 8000 
+side by side python main.py on kro 
+dono chalne chahiye sath me taaki jaise hi code push hoye to wo scan krle 
+

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Admin Controls</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+    background-color: #020617; /* Extra dark slate */
+    background-image: 
+        linear-gradient(to right, rgba(30, 41, 59, 0.2) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.2) 1px, transparent 1px);
+    background-size: 40px 40px; /* Creates the subtle grid */
+    color: #e2e8f0;
+    font-family: 'ui-monospace', 'Cascadia Code', monospace;
+}
+
+/* Glassmorphism Effect for Panels */
+.bg-slate-800 {
+    background-color: rgba(30, 41, 59, 0.7) !important;
+    backdrop-filter: blur(12px); /* Frosted glass effect */
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+        /* Smooth scrolling for panels */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="p-4 md:p-8 antialiased selection:bg-blue-500/30">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 border-b border-slate-700/60 pb-6 flex justify-between items-end">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                    <h1 class="text-3xl font-extrabold tracking-tight text-white">SENTINEL<span class="text-blue-500">ADMIN</span></h1>
+                </div>
+                <p class="text-slate-400 text-sm">Threat Management & Employee Access Control</p>
+            </div>
+            <a href="/" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2 border border-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-800">
+                &larr; Back to Dashboard
+            </a>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-2 bg-slate-800/50 border border-slate-700/60 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden flex flex-col h-[650px]">
+                <div class="p-5 border-b border-slate-700/60 bg-slate-800/80 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-slate-200">Registered Directory</h2>
+                    <span class="text-xs font-medium bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-full border border-blue-500/20">15 Active</span>
+                </div>
+                
+                <div class="overflow-y-auto flex-1 p-0">
+                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                        <thead class="sticky top-0 bg-slate-900/90 backdrop-blur z-10 shadow-sm">
+                            <tr class="text-[10px] text-slate-400 uppercase tracking-wider">
+                                <th class="py-3 px-6 font-semibold">Employee</th>
+                                <th class="py-3 px-6 font-semibold">Last Known IP</th>
+                                <th class="py-3 px-6 font-semibold">File Access</th>
+                                <th class="py-3 px-6 font-semibold text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table" class="divide-y divide-slate-700/50">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-6">
+                
+                <div class="bg-slate-800/50 border border-rose-900/30 rounded-xl shadow-2xl overflow-hidden flex flex-col h-[650px]">
+                    <div class="p-5 border-b border-rose-900/50 bg-gradient-to-r from-rose-950/40 to-slate-800/80 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-rose-400 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            Active IP Blacklist
+                        </h2>
+                    </div>
+                    
+                    <div class="p-5 flex-1 flex flex-col">
+                        <div class="flex gap-2 mb-6">
+                            <input type="text" id="manual-ip" placeholder="e.g. 45.12.33.102" 
+                                   class="bg-slate-900/80 border border-slate-600 focus:border-rose-500 rounded-lg px-3 py-2 text-sm w-full outline-none transition-colors shadow-inner placeholder-slate-500">
+                            <button onclick="takeAction('blacklist_ip', document.getElementById('manual-ip').value)" 
+                                    class="bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-lg text-white font-bold shadow-lg shadow-rose-900/20 transition-all active:scale-95">
+                                Block
+                            </button>
+                        </div>
+                        
+                        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Blocked Addresses</h3>
+                        <ul id="blacklist-container" class="space-y-2 overflow-y-auto flex-1 pr-2">
+                            </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+
+        async function fetchAdminData() {
+            try {
+                const res = await fetch(`${API_URL}/admin/users`);
+                const data = await res.json();
+                
+                // Render Users Table
+                const usersHtml = Object.keys(data.profiles).map(user => {
+                    const profile = data.profiles[user];
+                    const isOnline = data.online_users.includes(user); // NEW: Check real-time status
+                    const isRevoked = profile.file_access_revoked;
+                    
+                    // Format the IP string safely
+                    const ipStr = profile.last_ip 
+                        ? `<span class="text-slate-300 font-mono">${profile.last_ip}</span> <span class="text-slate-500 text-xs">(${profile.last_location})</span>` 
+                        : '<span class="text-slate-600 italic text-xs">No records</span>';
+                    
+                    return `
+                    <tr class="hover:bg-slate-700/20 transition-colors group">
+                        <td class="py-4 px-6">
+                            <div class="font-semibold text-slate-200 group-hover:text-blue-400 transition-colors flex items-center gap-2">
+                                ${user}
+                                ${isOnline ? '<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]" title="Online"></span>' : '<span class="w-2 h-2 rounded-full bg-slate-600" title="Offline"></span>'}
+                            </div>
+                            ${isOnline ? '<span class="text-[10px] text-emerald-400 font-medium tracking-wider">ACTIVE NOW</span>' : '<span class="text-[10px] text-slate-500 font-medium tracking-wider">OFFLINE</span>'}
+                        </td>
+                        <td class="py-4 px-6 text-sm tracking-wide">
+                            ${ipStr}
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
+                                isRevoked 
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            }">
+                                ${isRevoked ? '● REVOKED' : '● GRANTED'}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            <button onclick="takeAction('${isRevoked ? 'restore_access' : 'revoke_access'}', '${user}')" 
+                                    class="px-3 py-1.5 text-xs rounded-md font-semibold border transition-all active:scale-95 ${
+                                        isRevoked 
+                                        ? 'bg-slate-800 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/50' 
+                                        : 'bg-slate-800 text-rose-400 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/50'
+                                    }">
+                                ${isRevoked ? 'Restore Access' : 'Revoke Access'}
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+                document.getElementById('users-table').innerHTML = usersHtml;
+
+                // Render Blacklist
+                const blHtml = data.blacklisted_ips.map(ip => `
+                    <li class="bg-slate-900/50 border border-rose-900/50 p-3 rounded-lg flex justify-between items-center group hover:border-rose-500/50 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)]"></div>
+                            <span class="text-slate-300 font-mono text-sm tracking-wider">${ip}</span>
+                        </div>
+                        <button onclick="takeAction('whitelist_ip', '${ip}')" class="text-xs text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded transition-colors">
+                            Unblock
+                        </button>
+                    </li>
+                `).join('');
+                document.getElementById('blacklist-container').innerHTML = blHtml || `
+                    <div class="flex flex-col items-center justify-center h-32 text-center border-2 border-dashed border-slate-700 rounded-lg">
+                        <svg class="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <p class="text-slate-500 text-xs">No IPs currently blacklisted.</p>
+                    </div>`;
+            } catch (err) {
+                console.error("Error fetching admin data", err);
+            }
+        }
+
+        async function takeAction(actionType, targetId) {
+            if (!targetId || targetId.trim() === '') return;
+            await fetch(`${API_URL}/admin/action`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ action: actionType, target: targetId })
+            });
+            document.getElementById('manual-ip').value = ''; 
+            fetchAdminData();
+        }
+
+        setInterval(fetchAdminData, 3000);
+        fetchAdminData();
+    </script>
+</body>
+</html>
